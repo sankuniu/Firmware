@@ -675,9 +675,38 @@ FixedwingPositionControl::control_position(const Vector2f &curr_pos, const Vecto
 						   mission_throttle,
 						   false,
 						   radians(_param_fw_p_lim_min.get()));
+		} else if (pos_sp_curr.type == position_setpoint_s::SETPOINT_TYPE_SOARING) {
 
-		} else if (pos_sp_curr.type == position_setpoint_s::SETPOINT_TYPE_LOITER
-			   || pos_sp_curr.type == position_setpoint_s::SETPOINT_TYPE_SOARING) {
+			/* waypoint is a loiter waypoint */
+			float loiter_radius = pos_sp_curr.loiter_radius;
+			uint8_t loiter_direction = pos_sp_curr.loiter_direction;
+
+			if (fabsf(pos_sp_curr.loiter_radius) < FLT_EPSILON) {
+				loiter_radius = _param_nav_loiter_rad.get();
+				loiter_direction = (loiter_radius > 0) ? 1 : -1;
+
+			}
+
+			_l1_control.navigate_loiter(curr_wp, curr_pos, loiter_radius, loiter_direction, nav_speed_2d);
+
+			_att_sp.roll_body = _l1_control.get_roll_setpoint();
+			_att_sp.yaw_body = _l1_control.nav_bearing();
+
+			float alt_sp = pos_sp_curr.alt;
+
+			_tecs.set_speed_weight(2.0f);
+
+			tecs_update_pitch_throttle(alt_sp,
+						   calculate_target_airspeed(mission_airspeed, ground_speed),
+						   radians(_param_fw_p_lim_min.get()) - radians(_param_fw_psp_off.get()),
+						   radians(_param_fw_p_lim_max.get()) - radians(_param_fw_psp_off.get()),
+						   0.0f,
+						   0.0f,
+						   0.0f,
+						   false,
+						   radians(_param_fw_p_lim_min.get()));
+
+		} else if (pos_sp_curr.type == position_setpoint_s::SETPOINT_TYPE_LOITER) {
 
 			/* waypoint is a loiter waypoint */
 			float loiter_radius = pos_sp_curr.loiter_radius;
