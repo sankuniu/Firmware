@@ -374,7 +374,7 @@ bool ICM20608G::DataReadyInterruptConfigure()
 	}
 
 	// Setup data ready on falling edge
-	return px4_arch_gpiosetevent(_drdy_gpio, false, true, true, &ICM20608G::DataReadyInterruptCallback, this) == 0;
+	return px4_arch_gpiosetevent(_drdy_gpio, false, true, true, &DataReadyInterruptCallback, this) == 0;
 }
 
 bool ICM20608G::DataReadyInterruptDisable()
@@ -493,7 +493,7 @@ bool ICM20608G::FIFORead(const hrt_abstime &timestamp_sample, uint16_t samples)
 		// force check if there is somehow fewer samples actually in the FIFO (potentially a serious error)
 		_force_fifo_count_check = true;
 
-	} else if (fifo_count_samples > samples + 4) {
+	} else if (fifo_count_samples > samples + 3) {
 		// if we're more than a few samples behind force FIFO_COUNT check
 		_force_fifo_count_check = true;
 
@@ -504,8 +504,14 @@ bool ICM20608G::FIFORead(const hrt_abstime &timestamp_sample, uint16_t samples)
 
 	if (valid_samples > 0) {
 		ProcessGyro(timestamp_sample, buffer, valid_samples);
-		return ProcessAccel(timestamp_sample, buffer, valid_samples);
+
+		if (ProcessAccel(timestamp_sample, buffer, valid_samples)) {
+			return true;
+		}
 	}
+
+	// force FIFO count check if there was any other error
+	_force_fifo_count_check = true;
 
 	return false;
 }
